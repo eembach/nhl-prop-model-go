@@ -557,3 +557,37 @@ func (c *Client) GetRaw(path string) (json.RawMessage, error) {
 		Get(path)
 	return result, err
 }
+
+// GameBoxStats represents a simplified view of player stats from a box score
+type GameBoxStats struct {
+	PlayerID int
+	Name     string
+	SOG      int
+	Points   int
+	Goals    int
+	Assists  int
+	TOI      float64
+}
+
+// GetGameBoxScore fetches simplified player stats from a game's boxscore
+func (c *Client) GetGameBoxScore(gameID int) ([]GameBoxStats, error) {
+	box, err := c.GetBoxscore(gameID)
+	if err != nil {
+		return nil, err
+	}
+
+	var stats []GameBoxStats
+	for _, p := range box.PlayerStats {
+		stats = append(stats, GameBoxStats{
+			PlayerID: p.PlayerID,
+			Name:     "", // Name not stored in BoxscorePlayerStats
+			SOG:      p.SOG,
+			Points:   p.Points,
+			Goals:    p.Goals,
+			Assists:  p.Assists,
+			TOI:      p.TOI,
+		})
+	}
+
+	return stats, nil
+}
