@@ -80,8 +80,9 @@ func (m *PoissonBinomialMixture) recalculateParams() {
 		m.OpportunityRate *= ppBoost
 	}
 
-	// Team total sanity check
-	if m.Covariates.TeamTotal < 2.5 {
+	// Team total sanity check - only apply penalty if explicitly set to low value
+	// If TeamTotal is 0 (not set), treat as neutral (no penalty)
+	if m.Covariates.TeamTotal > 0 && m.Covariates.TeamTotal < 2.5 {
 		penalty := m.Covariates.TeamTotal / 2.5
 		m.OpportunityRate *= penalty
 	}

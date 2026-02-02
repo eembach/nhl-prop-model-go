@@ -113,7 +113,7 @@ func main() {
 
 		ctx := distributions.DistributionContext{
 			TeamTotal:     expectedTotal / 2,
-			OppGA60:       awayStats.GAPerGame * 20,
+			OppGA60:       awayStats.GAPerGame, // Goals against per game
 			HomeGame:      true,
 			ArenaSOGBias:  1.0,
 			FatigueFactor: 0.0,

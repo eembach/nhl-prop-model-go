@@ -120,15 +120,59 @@ type DistributionContext struct {
 }
 
 func (f *Factory) createSOGDistribution(stats *types.PlayerStats, ctx DistributionContext) Distribution {
-	dist := NewHierarchicalPoissonGamma(stats.SOG, stats.RecentSOG)
+	// Use season SOG, fallback to RecentSOG if available
+	seasonRate := stats.SOG
+	recentRate := stats.RecentSOG
+	if recentRate == 0 {
+		recentRate = seasonRate // Use season rate if recent not available
+	}
+
+	dist := NewHierarchicalPoissonGamma(seasonRate, recentRate)
 
 	cov := f.DefaultSOGCov
-	cov.TOIRatio = ctx.ExpectedTOI / maxFloat(stats.TOI, 10.0)
-	cov.OZStartPct = ctx.OZStartPct
-	cov.PPTOIRatio = ctx.ExpectedPPTOI / maxFloat(stats.PPTOI, 1.0)
-	cov.TeamPace = ctx.TeamPace
-	cov.OppSuppression = normalizeOppMetric(ctx.OppCA60, 60.0) // League avg CA/60 ~ 60
-	cov.RinkBias = ctx.ArenaSOGBias
+
+	// TOI ratio - default to 1.0 if not set
+	if ctx.ExpectedTOI > 0 && stats.TOI > 0 {
+		cov.TOIRatio = ctx.ExpectedTOI / stats.TOI
+	} else {
+		cov.TOIRatio = 1.0
+	}
+
+	// OZ% - default to 0.5 (neutral) if not set
+	if ctx.OZStartPct > 0 {
+		cov.OZStartPct = ctx.OZStartPct
+	} else {
+		cov.OZStartPct = 0.5
+	}
+
+	// PP TOI ratio
+	if ctx.ExpectedPPTOI > 0 && stats.PPTOI > 0 {
+		cov.PPTOIRatio = ctx.ExpectedPPTOI / stats.PPTOI
+	} else {
+		cov.PPTOIRatio = 1.0
+	}
+
+	// Team pace - default to 1.0 if not set
+	if ctx.TeamPace > 0 {
+		cov.TeamPace = ctx.TeamPace
+	} else {
+		cov.TeamPace = 1.0
+	}
+
+	// Opponent suppression - default to 1.0 if not set
+	if ctx.OppCA60 > 0 {
+		cov.OppSuppression = normalizeOppMetric(ctx.OppCA60, 60.0)
+	} else {
+		cov.OppSuppression = 1.0
+	}
+
+	// Rink bias - default to 1.0 if not set
+	if ctx.ArenaSOGBias > 0 {
+		cov.RinkBias = ctx.ArenaSOGBias
+	} else {
+		cov.RinkBias = 1.0
+	}
+
 	cov.FatiguePenalty = ctx.FatigueFactor
 
 	// Scenario adjustments
@@ -155,19 +199,27 @@ func (f *Factory) createPointsDistribution(stats *types.PlayerStats, ctx Distrib
 		oppRate = stats.XGF60 / 60.0 * stats.TOI * 2.0
 	}
 
+	// Use season rate if recent not available
 	recentOppRate := stats.RecentPPG * 2.0
+	if recentOppRate == 0 {
+		recentOppRate = oppRate // Fall back to season rate
+	}
 
 	// Estimate conversion probability
-	convProb := 0.4 // Base conversion
+	convProb := 0.5 // Base conversion (50% of opportunities convert to points)
 	if stats.ShootingPct > 0 {
-		convProb = stats.ShootingPct / 100.0 * 3.0 // Scale shooting % to conversion
+		// ShootingPct is now in percentage form (e.g., 12.5 for 12.5%)
+		// Scale to conversion probability (shooting is just one way to score)
+		convProb = 0.3 + (stats.ShootingPct / 100.0) * 0.4 // Range 0.3 to 0.7
 	}
 
 	dist := NewPoissonBinomialMixture(oppRate, recentOppRate, convProb, convProb)
 
 	cov := f.DefaultPointsCov
 	cov.XGF60Ratio = stats.XGF60 / maxFloat(2.5, 1.0) // Normalize to ~league avg
-	cov.FinishingSkill = stats.ShootingPct / maxFloat(10.0, 1.0)
+	// FinishingSkill is a small adjustment since convProb already incorporates ShootingPct
+	// League avg (~10%) = 1.0, elite (17%) = 1.07, below avg (8%) = 0.98
+	cov.FinishingSkill = 1.0 + (stats.ShootingPct-10.0)/100.0
 	if ctx.PP1Unit {
 		cov.PP1Share = ctx.ExpectedPPTOI / maxFloat(stats.TOI, 10.0)
 	}
@@ -192,7 +244,8 @@ func (f *Factory) createGoalsDistribution(stats *types.PlayerStats, ctx Distribu
 	dist := NewPoissonBinomialMixture(goalsPerGame*3, recentGPG*3, 0.33, 0.33)
 
 	cov := f.DefaultPointsCov
-	cov.FinishingSkill = stats.ShootingPct / maxFloat(10.0, 1.0)
+	// Small adjustment for shooting skill (league avg ~10%)
+	cov.FinishingSkill = 1.0 + (stats.ShootingPct-10.0)/100.0
 	cov.TeamTotal = ctx.TeamTotal
 	cov.FatiguePenalty = ctx.FatigueFactor
 

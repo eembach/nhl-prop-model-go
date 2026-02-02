@@ -150,7 +150,7 @@ func (c *Client) GetPlayerStats(playerID int, season string) (*types.PlayerStats
 				Points:        s.Points,
 				PPGoals:       s.PowerPlayGoals,
 				PPPoints:      s.PowerPlayPoints,
-				ShootingPct:   s.ShootingPctg,
+				ShootingPct:   s.ShootingPctg * 100, // API returns decimal, convert to percentage
 				SOGTotal:      s.Shots,
 			}
 
