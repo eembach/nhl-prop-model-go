@@ -326,22 +326,15 @@ func generatePicksForPlayer(p types.Player, stats *types.PlayerStats, factory *d
 	sogProp := findProp(gameProps, p.Name, "shots")
 	ptsProp := findProp(gameProps, p.Name, "points")
 
-	// Points Under (best performer in backtest)
-	if stats.PointsPerGame <= 0.9 {
+	// Points Under (best performer in backtest) - ONLY if live line exists
+	if ptsProp != nil && stats.PointsPerGame <= 0.9 {
 		dist := factory.CreateDistribution(types.PropMarketPointsOver, stats, ctx)
 		proj := dist.Mean()
 
-		var line float64 = 0.5
-		var impliedProb float64 = 0.535 // Default -115 juice
-		var liveOdds int = -115
-		var book string = "default"
-
-		if ptsProp != nil {
-			line = ptsProp.Line
-			impliedProb = americanToProb(ptsProp.UnderPrice)
-			liveOdds = ptsProp.UnderPrice
-			book = ptsProp.Bookmaker
-		}
+		line := ptsProp.Line
+		impliedProb := americanToProb(ptsProp.UnderPrice)
+		liveOdds := ptsProp.UnderPrice
+		book := ptsProp.Bookmaker
 
 		probUnder := 1 - dist.ProbOver(line)
 		edge := (probUnder - impliedProb) * 100
@@ -387,22 +380,15 @@ func generatePicksForPlayer(p types.Player, stats *types.PlayerStats, factory *d
 		}
 	}
 
-	// SOG Under
-	if stats.SOG <= 2.0 && stats.TOI >= 14 {
+	// SOG Under - ONLY if live line exists
+	if sogProp != nil && stats.SOG <= 2.0 && stats.TOI >= 14 {
 		dist := factory.CreateDistribution(types.PropMarketSOGOver, stats, ctx)
 		proj := dist.Mean()
 
-		var line float64 = 2.5
-		var impliedProb float64 = 0.524
-		var liveOdds int = -110
-		var book string = "default"
-
-		if sogProp != nil {
-			line = sogProp.Line
-			impliedProb = americanToProb(sogProp.UnderPrice)
-			liveOdds = sogProp.UnderPrice
-			book = sogProp.Bookmaker
-		}
+		line := sogProp.Line
+		impliedProb := americanToProb(sogProp.UnderPrice)
+		liveOdds := sogProp.UnderPrice
+		book := sogProp.Bookmaker
 
 		probUnder := 1 - dist.ProbOver(line)
 		edge := (probUnder - impliedProb) * 100
@@ -447,22 +433,15 @@ func generatePicksForPlayer(p types.Player, stats *types.PlayerStats, factory *d
 		}
 	}
 
-	// SOG Over
-	if stats.SOG >= 2.5 {
+	// SOG Over - ONLY if live line exists
+	if sogProp != nil && stats.SOG >= 2.5 {
 		dist := factory.CreateDistribution(types.PropMarketSOGOver, stats, ctx)
 		proj := dist.Mean()
 
-		var line float64 = 2.5
-		var impliedProb float64 = 0.524
-		var liveOdds int = -110
-		var book string = "default"
-
-		if sogProp != nil {
-			line = sogProp.Line
-			impliedProb = americanToProb(sogProp.OverPrice)
-			liveOdds = sogProp.OverPrice
-			book = sogProp.Bookmaker
-		}
+		line := sogProp.Line
+		impliedProb := americanToProb(sogProp.OverPrice)
+		liveOdds := sogProp.OverPrice
+		book := sogProp.Bookmaker
 
 		probOver := dist.ProbOver(line)
 		edge := (probOver - impliedProb) * 100
